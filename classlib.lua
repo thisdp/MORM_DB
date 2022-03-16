@@ -369,29 +369,3 @@ class "DataBase" {
 	end;
 }
 morm = MORM()
-
---------------------Custom Class
-class "account" {
-	uid = "uint32",
-	username = "char[32]",
-	password = "char[256]",
-	constructor = function(self,data)
-		for k,v in pairs(data) do
-			self[k] = v
-		end
-	end;
-}
-
---------------------
-db = morm:Open("sqlite","test.db")
-tConf = morm:TableConfig(account)
-db:Create("newName",tConf):Query()
-
-db:Select("*"):From("account"):Where("uid",123):Query(1000,function(self,data)
-	iprint(data)
-end)
-
-local acc = account{
-	uid = 123,
-}
-db:Table(tConf):Update(acc):Query()
