@@ -37,8 +37,15 @@ ac = account{
 	password="xx",
 }
 
+ac2 = account{
+	uid=12,
+	username="ttx",
+	password="xxw",
+}
+
 db = morm:Open("sqlite","test.db")
 db:Create(account):Query()
 db:Create(ac):Query()
+db:Update(ac2):Query()
 --查询
 --db:Select("*"):From("account"):Where("uid",123):Query()
