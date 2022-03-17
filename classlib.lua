@@ -198,44 +198,31 @@ class "DataBase" {
 		end
 	end;
 	Create = function(self,...)
+		local tableName,template
 		if select("#",...) == 1 then
-			local template = ...
+			template = ...
 			if not(type(template) == "table" and template.class) then outputDebugString("@Create at argument 1, expect a Class/Instance got "..type(template),3) return false end
-			--if table name is not specified
-			if not self.dbString.table then
+			if not self.dbString.table then --if table name is not specified
 				if not(type(template.class) == "string") then outputDebugString("@Create, table name is not specified",3) return false end
 			end
-			
-			if template.instance then	--If is instance, just insert
-				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Insert Into `??` ",self.dbString.table or template.class)
-				local ks,vs = oopUtil.splitKeyValue(template)
-				local keys = {}
-				local values = {}
-				for i=1,#ks do
-					keys[#keys+1] = dbPrepareString(self.db,"`??`",ks[i])
-					values[#values+1] = dbPrepareString(self.db,"?",vs[i])
-				end
-				self.dbString[#self.dbString+1] = "("..table.concat(keys,",")..") Values ("..table.concat(values,",")..")"
-			else
-				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or template.class,oopUtil.configToSql(template,self.dbType))
-			end
+			tableName = self.dbString.table or template.class
 		else
-			local tableName,template = ...
+			tableName,template = ...
 			if not(type(tableName) == "string") then outputDebugString("@Create at argument 1, expect a string got "..type(tableName),3) end
 			if not(type(template) == "table") then outputDebugString("@Create at argument 2, expect a Class/table got "..type(template),3) end
-			if template.instance then	--If is instance, just insert
-				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Insert Into `??` ",self.dbString.table or tableName)
-				local ks,vs = oopUtil.splitKeyValue(template)
-				local keys = {}
-				local values = {}
-				for i=1,#ks do
-					keys[#keys+1] = dbPrepareString(self.db,"`??`",ks[i])
-					values[#values+1] = dbPrepareString(self.db,"?",vs[i])
-				end
-				self.dbString[#self.dbString+1] = "("..table.concat(keys,",")..") Values ("..table.concat(values,",")..")"
-			else
-				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or tableName,oopUtil.configToSql(template,self.dbType))
+			tableName = self.dbString.table or tableName
+		end
+		if template.instance then	--If is instance, just insert
+			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Insert Into `??` ",tableName)
+			local ks,vs = oopUtil.splitKeyValue(template)
+			local keys,values = {},{}
+			for i=1,#ks do
+				keys[#keys+1] = dbPrepareString(self.db,"`??`",ks[i])
+				values[#values+1] = dbPrepareString(self.db,"?",vs[i])
 			end
+			self.dbString[#self.dbString+1] = "("..table.concat(keys,",")..") Values ("..table.concat(values,",")..")"
+		else
+			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or template.class,oopUtil.configToSql(template,self.dbType))
 		end
 		return self
 	end;
@@ -256,12 +243,25 @@ class "DataBase" {
 	end;
 	Update = function(self,...)
 		local argCount = select("#",...)
-		if argCount == 2 then
+		if argCount == 1 then
+			local template = ...
+			if not(type(template) == "table") then outputDebugString("@Update at argument 1, expect a Class/Instance got "..type(template),3) return false end
+			if not self.dbString.table then
+				if not(type(template.class) == "string") then outputDebugString("@Update, table name is not specified",3) return false end
+				self.dbString.table = template.class
+			end
+			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Update `??` SET ",self.dbString.table)
+			local kvPair = {}
+			for key,value in pairs(template) do
+				kvPair[#kvPair+1] = dbPrepareString(self.db," `??` = ? ",key,value)
+			end
+			self.dbString[#self.dbString+1] = table.concat(kvPair,",")
+		elseif argCount == 2 then
 			local key,value = ...
 			if type(value) == "table" then
-				local tableNameOrTemplate,updateTable = ...
+				local tableNameOrTemplate,template = ...
 				if not (type(tableNameOrTemplate) == "string" or (type(tableNameOrTemplate) == "table" and tableNameOrTemplate.class)) then outputDebugString("@Update at argument 1, expect a Class/string got "..type(tableNameOrTemplate),3) end
-				if not (type(updateTable) == "table") then outputDebugString("@Update at argument 2, expected a table got "..type(updateTable),3) return false end
+				if not(type(template) == "table") then outputDebugString("@Update at argument 2, expect a table/Instance got "..type(template),3) return false end			
 				if not self.dbString.table then
 					if type(tableNameOrTemplate) == "string" then
 						self.dbString.table = tableNameOrTemplate
@@ -270,9 +270,11 @@ class "DataBase" {
 					end
 				end	--Skip if table is already specified
 				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Update `??` SET ",self.dbString.table)
-				for key,value in pairs(updateTable) do
-					self.dbString[#self.dbString+1] = dbPrepareString(self.db,"`??` = ?",key,value)
+				local kvPair = {}
+				for key,value in pairs(template) do
+					kvPair[#kvPair+1] = dbPrepareString(self.db," `??` = ? ",key,value)
 				end
+				self.dbString[#self.dbString+1] = table.concat(kvPair,",")
 			else
 				if not (type(key) == "string") then outputDebugString("@Update at argument 1, expected a string got "..type(key),3) return false end
 				if not self.dbString.table then outputDebugString("@Update, table name is not specified",3) return false end
@@ -291,14 +293,6 @@ class "DataBase" {
 			end	--Skip if table is already specified
 			if not self.dbString.table then outputDebugString("@Update, table name is not specified",3) return false end
 			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Update`??` SET `??` = ? ",self.dbString.table,key,value)
-		elseif argCount == 1 then
-			local updateTable = ...
-			if not (type(updateTable) == "table") then outputDebugString("@Update at argument 1, expected a table got "..type(updateTable),3) return false end
-			if not self.dbString.table then outputDebugString("@Update, table name is not specified",3) return false end
-			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Update `??` SET ",self.dbString.table)
-			for key,value in pairs(updateTable) do
-				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"`??` = ?",key,value)
-			end
 		end
 		return self
 	end;
@@ -317,6 +311,7 @@ class "DataBase" {
 			return true
 		else
 			local handle = dbQuery(self.db,table.concat(self.dbString))
+			print(table.concat(self.dbString))
 			self.dbString = {}
 			return dbPoll(handle,timedout or -1)
 		end
@@ -329,11 +324,7 @@ class "DataBase" {
 	Table = function(self,tableNameOrTemplate)
 		--Use this table if specified by :Table("tableName"), and this has the top priority.
 		if not (type(tableNameOrTemplate) == "string" or (type(tableNameOrTemplate) == "table" and tableNameOrTemplate.class)) then outputDebugString("@Table at argument 1, expect a Class/string got "..type(tableNameOrTemplate),3) end
-		if type(tableNameOrTemplate) == "string" then
-			self.dbString.table = tableNameOrTemplate
-		else
-			self.dbString.table = tableNameOrTemplate.class
-		end
+		self.dbString.table = (type(tableNameOrTemplate) == "string") and tableNameOrTemplate or tableNameOrTemplate.class
 		return self
 	end;
 	Alert = function(self,...)
