@@ -23,6 +23,7 @@ class "account" {
 	username = "char[32]",
 	password = "char[256]",
 	constructor = function(self,data)
+		if type(data) ~= "table" then return end
 		for k,v in pairs(data) do
 			self[k] = v
 		end
@@ -30,14 +31,14 @@ class "account" {
 }
 
 --------------------
-db = morm:Open("sqlite","test.db")
-db:Create("newName",account):Query()
-
-db:Select("*"):From("account"):Where("uid",123):Query(1000,function(self,data)
-	iprint(data)
-end)
-
-local acc = account{
-	uid = 123,
+ac = account{
+	uid=1,
+	username="tt",
+	password="xx",
 }
-db:Table(account):Update(acc):Query()
+
+db = morm:Open("sqlite","test.db")
+db:Create(account):Query()
+db:Create(ac):Query()
+--查询
+--db:Select("*"):From("account"):Where("uid",123):Query()

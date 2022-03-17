@@ -47,6 +47,15 @@ oopUtil = {
 		end
 		return Func(obj)
 	end,
+	splitKeyValue = function(theTable)
+		local keyTable = {}
+		local valueTable = {}
+		for key,value in pairs(theTable) do
+			keyTable[#keyTable+1] = key
+			valueTable[#valueTable+1] = value
+		end
+		return keyTable,valueTable
+	end;
 	deepCopy = function(obj)
 		local function Func(obj)
 			if type(obj) ~= "table" then return obj end
@@ -138,6 +147,7 @@ function class(name) return function(classTable)
 	setmetatable(classTable,meta)
 	oopUtil.spreadFunctionsForClass(oopUtil.classMetaReg[name].__index,classTable)
 	oopUtil.classMetaReg[name].__index.class = name
+	oopUtil.classMetaReg[name].__index.instance = true
 	if not classTable.expose then
 		_G[name] = classTable
 	elseif oopUtil.classMetaReg[classTable.expose] then
@@ -190,16 +200,42 @@ class "DataBase" {
 	Create = function(self,...)
 		if select("#",...) == 1 then
 			local template = ...
-			if not(type(template) == "table" and template.class) then outputDebugString("@Create at argument 1, expect a Class got "..type(template),3) return false end
+			if not(type(template) == "table" and template.class) then outputDebugString("@Create at argument 1, expect a Class/Instance got "..type(template),3) return false end
 			--if table name is not specified
 			if not self.dbString.table then
 				if not(type(template.class) == "string") then outputDebugString("@Create, table name is not specified",3) return false end
 			end
-			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or template.class,oopUtil.configToSql(template,self.dbType))
+			
+			if template.instance then	--If is instance, just insert
+				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Insert Into `??` ",self.dbString.table or template.class)
+				local ks,vs = oopUtil.splitKeyValue(template)
+				local keys = {}
+				local values = {}
+				for i=1,#ks do
+					keys[#keys+1] = dbPrepareString(self.db,"`??`",ks[i])
+					values[#values+1] = dbPrepareString(self.db,"?",vs[i])
+				end
+				self.dbString[#self.dbString+1] = "("..table.concat(keys,",")..") Values ("..table.concat(values,",")..")"
+			else
+				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or template.class,oopUtil.configToSql(template,self.dbType))
+			end
 		else
 			local tableName,template = ...
-			if not(type(template) == "table") then outputDebugString("@Create at argument 1, expect a Class/table got "..type(template),3) end
-			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or tableName,oopUtil.configToSql(template,self.dbType))
+			if not(type(tableName) == "string") then outputDebugString("@Create at argument 1, expect a string got "..type(tableName),3) end
+			if not(type(template) == "table") then outputDebugString("@Create at argument 2, expect a Class/table got "..type(template),3) end
+			if template.instance then	--If is instance, just insert
+				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Insert Into `??` ",self.dbString.table or tableName)
+				local ks,vs = oopUtil.splitKeyValue(template)
+				local keys = {}
+				local values = {}
+				for i=1,#ks do
+					keys[#keys+1] = dbPrepareString(self.db,"`??`",ks[i])
+					values[#values+1] = dbPrepareString(self.db,"?",vs[i])
+				end
+				self.dbString[#self.dbString+1] = "("..table.concat(keys,",")..") Values ("..table.concat(values,",")..")"
+			else
+				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or tableName,oopUtil.configToSql(template,self.dbType))
+			end
 		end
 		return self
 	end;
@@ -265,13 +301,6 @@ class "DataBase" {
 			end
 		end
 		return self
-	end;
-	Insert = function(self,fromTable,...)
-		if select("#",...) == 1 then
-			
-		else
-			--local 
-		end
 	end;
 	Delete = function(self,tableName)
 		self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Drop Table If Exists ?",tableName)
