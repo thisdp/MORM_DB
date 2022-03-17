@@ -86,7 +86,9 @@ oopUtil = {
 	configToSql = function(self,dbType)
 		local strTable = {}
 		for columnName,dType in pairs(self) do
-			strTable[#strTable+1] = "`"..columnName.."` "..(sqlDataType[dType] or dType)
+			if type(dType) == "string" then
+				strTable[#strTable+1] = "`"..columnName.."` "..(sqlDataType[dType] or dType)
+			end
 		end
 		return table.concat(strTable,",")
 	end,
@@ -169,35 +171,6 @@ class "MORM" {
 	end;
 }
 
-class "TableConfig" {
-	expose = "MORM",
-	constructor = function(self,config)
-		self.config = config and oopUtil.deepCopy(config) or {}
-		self.name = config.class or nil
-	end,
-	setName = function(self,tableName)
-		if type(tableName) ~= "string" then return outputDebugString("@setName at argument 1, expect a string got "..type(tableName),3) end
-		self.name = tableName
-		return self
-	end,
-	addColumn = function(self,columnName,dataType)
-		if type(columnName) ~= "string" then return outputDebugString("@addColumn at argument 1, expect a string got "..type(columnName),3) end
-		if type(dataType) ~= "string" then return outputDebugString("@addColumn at argument 2, expect a string got "..type(dataType),3) end
-		local dType = string.lower(dataType)
-		self.config[columnName] = dType
-		return self
-	end,
-	toSql = function(self,dbType)
-		local strTable = {}
-		for columnName,dType in pairs(self.config) do
-			if type(dType) == "string" then
-				strTable[#strTable+1] = "`"..columnName.."` "..(sqlDataType[dType] or dType)
-			end
-		end
-		return table.concat(strTable,",")
-	end,
-}
-
 class "DataBase" {
 	expose = "MORM",
 	constructor = function(self,dbType,...)
@@ -217,28 +190,16 @@ class "DataBase" {
 	Create = function(self,...)
 		if select("#",...) == 1 then
 			local template = ...
-			if not(type(template) == "table" and template.class) then outputDebugString("@Create at argument 1, expect a Class/TableConfig got "..type(template),3) return false end
-			if template.class == "TableConfig" then
-				--if table name is not specified
-				if not self.dbString.table then
-					if not(type(template.name) == "string") then outputDebugString("@Create, table name is not specified",3) return false end
-				end
-				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or template.name,template:toSql(self.dbType))
-			else
-				--if table name is not specified
-				if not self.dbString.table then
-					if not(type(template.class) == "string") then outputDebugString("@Create, table name is not specified",3) return false end
-				end
-				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or template.class,oopUtil.configToSql(template,self.dbType))
+			if not(type(template) == "table" and template.class) then outputDebugString("@Create at argument 1, expect a Class got "..type(template),3) return false end
+			--if table name is not specified
+			if not self.dbString.table then
+				if not(type(template.class) == "string") then outputDebugString("@Create, table name is not specified",3) return false end
 			end
+			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or template.class,oopUtil.configToSql(template,self.dbType))
 		else
 			local tableName,template = ...
-			if not(type(template) == "table") then outputDebugString("@Create at argument 1, expect a Class/TableConfig/table got "..type(template),3) end
-			if template.class == "TableConfig" then
-				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or tableName,template:toSql(self.dbType))
-			else
-				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or tableName,oopUtil.configToSql(template,self.dbType))
-			end
+			if not(type(template) == "table") then outputDebugString("@Create at argument 1, expect a Class/table got "..type(template),3) end
+			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Create Table If Not Exists `??` (??)",self.dbString.table or tableName,oopUtil.configToSql(template,self.dbType))
 		end
 		return self
 	end;
@@ -263,13 +224,11 @@ class "DataBase" {
 			local key,value = ...
 			if type(value) == "table" then
 				local tableNameOrTemplate,updateTable = ...
-				if not (type(tableNameOrTemplate) == "string" or (type(tableNameOrTemplate) == "table" and tableNameOrTemplate.class)) then outputDebugString("@Update at argument 1, expect a Class/TableConfig/string got "..type(tableNameOrTemplate),3) end
+				if not (type(tableNameOrTemplate) == "string" or (type(tableNameOrTemplate) == "table" and tableNameOrTemplate.class)) then outputDebugString("@Update at argument 1, expect a Class/string got "..type(tableNameOrTemplate),3) end
 				if not (type(updateTable) == "table") then outputDebugString("@Update at argument 2, expected a table got "..type(updateTable),3) return false end
 				if not self.dbString.table then
 					if type(tableNameOrTemplate) == "string" then
 						self.dbString.table = tableNameOrTemplate
-					elseif tableNameOrTemplate.class == "TableConfig" then
-						self.dbString.table = tableNameOrTemplate.name
 					else
 						self.dbString.table = tableNameOrTemplate.class
 					end
@@ -285,13 +244,11 @@ class "DataBase" {
 			end
 		elseif argCount == 3 then
 			local tableNameOrTemplate,key,value = ...
-			if not (type(tableNameOrTemplate) == "string" or (type(tableNameOrTemplate) == "table" and tableNameOrTemplate.class)) then outputDebugString("@Update at argument 1, expect a Class/TableConfig/string got "..type(tableNameOrTemplate),3) end
+			if not (type(tableNameOrTemplate) == "string" or (type(tableNameOrTemplate) == "table" and tableNameOrTemplate.class)) then outputDebugString("@Update at argument 1, expect a Class/string got "..type(tableNameOrTemplate),3) end
 			if not (type(key) == "string") then outputDebugString("@Update at argument 2, expected a string got "..type(key),3) return false end
 			if not self.dbString.table then
 				if type(tableNameOrTemplate) == "string" then
 					self.dbString.table = tableNameOrTemplate
-				elseif tableNameOrTemplate.class == "TableConfig" then
-					self.dbString.table = tableNameOrTemplate.name
 				else
 					self.dbString.table = tableNameOrTemplate.class
 				end
@@ -311,7 +268,7 @@ class "DataBase" {
 	end;
 	Insert = function(self,fromTable,...)
 		if select("#",...) == 1 then
-		
+			
 		else
 			--local 
 		end
@@ -342,11 +299,9 @@ class "DataBase" {
 	end;
 	Table = function(self,tableNameOrTemplate)
 		--Use this table if specified by :Table("tableName"), and this has the top priority.
-		if not (type(tableNameOrTemplate) == "string" or (type(tableNameOrTemplate) == "table" and tableNameOrTemplate.class)) then outputDebugString("@Table at argument 1, expect a Class/TableConfig/string got "..type(tableNameOrTemplate),3) end
+		if not (type(tableNameOrTemplate) == "string" or (type(tableNameOrTemplate) == "table" and tableNameOrTemplate.class)) then outputDebugString("@Table at argument 1, expect a Class/string got "..type(tableNameOrTemplate),3) end
 		if type(tableNameOrTemplate) == "string" then
 			self.dbString.table = tableNameOrTemplate
-		elseif tableNameOrTemplate.class == "TableConfig" then
-			self.dbString.table = tableNameOrTemplate.name
 		else
 			self.dbString.table = tableNameOrTemplate.class
 		end

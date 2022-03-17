@@ -31,8 +31,7 @@ class "account" {
 
 --------------------
 db = morm:Open("sqlite","test.db")
-tConf = morm:TableConfig(account)
-db:Create("newName",tConf):Query()
+db:Create("newName",account):Query()
 
 db:Select("*"):From("account"):Where("uid",123):Query(1000,function(self,data)
 	iprint(data)
@@ -41,4 +40,4 @@ end)
 local acc = account{
 	uid = 123,
 }
-db:Table(tConf):Update(acc):Query()
+db:Table(account):Update(acc):Query()
