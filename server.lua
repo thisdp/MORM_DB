@@ -7,7 +7,7 @@ function import()
 		local classStr = fileRead(classFile,fileGetSize(classFile))
 		fileClose(classFile)
 		importCache = classStr
-		setTimer(function() importCache = nil end,1000,1) --Clear cache
+		importTimer = setTimer(function() importCache = nil end,1000,1) --Clear cache
 	end
 	return importCache
 end
@@ -43,9 +43,21 @@ ac2 = account{
 	password="xxw",
 }
 
+
 db = morm:Open("sqlite","test.db")
-db:Create(account):Query()
+--[[db:Create(account):Query()
 db:Create(ac):Query()
-db:Update(ac2):Query()
+db:Update(ac2):Query()]]
+
+
+ac3 = account{
+	uid=12,
+}
+ac2 = account{
+	uid=1,
+}
+local list = {ac3,ac2}
+prdb:Find(list):Query()
+iprint(list)
 --查询
 --db:Select("*"):From("account"):Where("uid",123):Query()

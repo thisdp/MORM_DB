@@ -187,6 +187,7 @@ class "DataBase" {
 		self.db = dbConnect(dbType,...)
 		self.dbString = {}
 		self.dbType = dbType
+		self.dbPendingFill = nil
 	end;
 	AutoMigrate = function(self,...)
 		if select("#",...) == 2 then
@@ -228,18 +229,55 @@ class "DataBase" {
 	end;
 	Select = function(self,selectColumn)
 		self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Select ?? ",selectColumn or "*")
+		if self.dbString.table then
+			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"From `??` ",self.dbString.table)
+		end
 		return self
 	end;
 	From = function(self,fromTable)
-		self.dbString[#self.dbString+1] = dbPrepareString(self.db,"From `??` ",fromTable)
+		if not fromTable then
+			if not self.dbString.table then outputDebugString("@From, table name is not specified",3) return false end
+			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"From `??` ",self.dbString.table)
+		else
+			if self.dbString.table then outputDebugString("@From, table name is already specified",3) return false end
+			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"From `??` ",fromTable)
+		end
 		return self
 	end;
 	Where = function(self,columnName,value)
 		self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Where `??` = ? ",columnName,value)
 		return self
 	end;
-	First = function(self,...)
-	
+	Find = function(self,...)
+		local argCount = select("#",...)
+		if argCount == 1 then
+			local instance = ...
+			if not(type(instance) == "table") then outputDebugString("@Find at argument 1, expect a table/Instance got "..type(instance),3) return false end
+			if instance.instance == true then	--If is instance
+				if not self.dbString.table then self.dbString.table = instance.class end
+				self:Select()
+				local where = {}
+				for key,value in pairs(instance) do
+					where[#where+1] = dbPrepareString(self.db," `??` = ? ",key,value)
+				end
+				self.dbString[#self.dbString+1] = "Where"..table.concat(where,"and")
+				self.dbPendingFill = {instance}
+			else	--Otherwise, Instance List
+				if not self.dbString.table then self.dbString.table = instance[1].class end
+				local conditions = {}
+				for i=1,#instance do
+					local where = {}
+					for key,value in pairs(instance[i]) do
+						where[#where+1] = dbPrepareString(self.db," `??` = ? ",key,value)
+					end
+					conditions[#conditions+1] = " ("..table.concat(where,"and")..") "
+				end
+				self:Select()
+				self.dbString[#self.dbString+1] = "Where"..table.concat(conditions,"or")
+				self.dbPendingFill = instance
+			end
+		end
+		return self
 	end;
 	Update = function(self,...)
 		local argCount = select("#",...)
@@ -302,10 +340,36 @@ class "DataBase" {
 	end;
 	Query = function(self,timedout,callback)
 		local _self = self
+		local pendingFill = self.dbPendingFill
+		self.dbPendingFill = nil
 		if callback then
 			dbQuery(function(handle)
 				self = _self
-				callback(self,dbPoll(handle,timedout or -1))
+				local pollData = dbPoll(handle,timedout or -1)
+				if pollData and pendingFill then	--Pending To Fill
+					local successCount = 0
+					for i=1,#pendingFill do			--Loop Pending To Fill List
+						local p = 1
+						while(pollData[p]) do		--Loop Retrieved Data List
+							local isCopyData = true
+							for key,value in pairs(pendingFill[i]) do		--Compare Data
+								if pollData[p][key] ~= value then isCopyData = false break end	--Continue
+							end
+							if isCopyData then
+								for key,value in pairs(pollData[p]) do			--Copy Data
+									pendingFill[i][key] = value
+								end
+								successCount = successCount+1
+								table.remove(pollData,p)
+								p = #pollData
+							end
+							p = p+1
+						end
+					end
+					callback(self,successCount)
+				else
+					callback(self,pollData)
+				end
 			end,self.db,table.concat(self.dbString))
 			self.dbString = {}
 			return true
@@ -313,7 +377,30 @@ class "DataBase" {
 			local handle = dbQuery(self.db,table.concat(self.dbString))
 			print(table.concat(self.dbString))
 			self.dbString = {}
-			return dbPoll(handle,timedout or -1)
+			local pollData = dbPoll(handle,timedout or -1)
+			if pollData and pendingFill then	--Pending To Fill
+				local successCount = 0
+				for i=1,#pendingFill do			--Loop Pending To Fill List
+					local p = 1
+					while(pollData[p]) do		--Loop Retrieved Data List
+						local isCopyData = true
+						for key,value in pairs(pendingFill[i]) do		--Compare Data
+							if pollData[p][key] ~= value then isCopyData = false break end	--Continue
+						end
+						if isCopyData then
+							for key,value in pairs(pollData[p]) do			--Copy Data
+								pendingFill[i][key] = value
+							end
+							successCount = successCount+1
+							table.remove(pollData,p)
+							p = #pollData
+						end
+						p = p+1
+					end
+				end
+				return successCount
+			end
+			return pollData
 		end
 	end;
 	Raw = function(self,raw,...)
