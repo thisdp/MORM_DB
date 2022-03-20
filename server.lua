@@ -57,7 +57,9 @@ ac2 = account{
 	uid=1,
 }
 local list = {ac3,ac2}
-prdb:Find(list):Query()
+
+db:Find(list):Query()
+
 iprint(list)
 --查询
 --db:Select("*"):From("account"):Where("uid",123):Query()
