@@ -36,14 +36,7 @@ class "vehicle" {
 	x = "float",
 	y = "float",
 	z = "float",
-	constructor = function(self,data)
-		if type(data) ~= "table" then return end
-		for k,v in pairs(data) do
-			self[k] = v
-		end
-	end;
 	onCreate = function(self)
-		iprint(self,1)
 		self.element = createVehicle(self.model,self.x,self.y,self.z)
 	end;
 	onSave = function(self)
@@ -51,15 +44,12 @@ class "vehicle" {
 	end;
 }
 
---------------------
 veh = vehicle{
 	id = 1;
 }
 
 db = morm:Open("sqlite","test.db")
 db:Create(vehicle):Query()
---db:Update(ac2):Query()
-print(veh,2)
 db:Find(veh):Query(-1,function()
 	veh:onCreate()
 end)

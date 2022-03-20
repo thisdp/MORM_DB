@@ -114,7 +114,7 @@ function class(name) return function(classTable)
 				classTemplate.constructor(newInstance,...)
 			else
 				local copyData = ...
-				if type(copyData) ~= "table" then return end
+				if type(copyData) ~= "table" then return newInstance end
 				for k,v in pairs(copyData) do
 					newInstance[k] = v
 				end
