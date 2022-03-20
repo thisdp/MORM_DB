@@ -375,7 +375,6 @@ class "DataBase" {
 			return true
 		else
 			local handle = dbQuery(self.db,table.concat(self.dbString))
-			print(table.concat(self.dbString))
 			self.dbString = {}
 			local pollData = dbPoll(handle,timedout or -1)
 			if pollData and pendingFill then	--Pending To Fill
