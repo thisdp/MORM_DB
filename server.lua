@@ -30,36 +30,39 @@ class "account" {
 	end;
 }
 
+class "vehicle" {
+	id = "uint32",
+	model = "uint32",
+	x = "float",
+	y = "float",
+	z = "float",
+	constructor = function(self,data)
+		if type(data) ~= "table" then return end
+		for k,v in pairs(data) do
+			self[k] = v
+		end
+	end;
+	onCreate = function(self)
+		iprint(self,1)
+		self.element = createVehicle(self.model,self.x,self.y,self.z)
+	end;
+	onSave = function(self)
+		self.x,self.y,self.z = getElementPosition(self.element)
+	end;
+}
+
 --------------------
-ac = account{
-	uid=1,
-	username="tt",
-	password="xx",
+veh = vehicle{
+	id = 1;
 }
-
-ac2 = account{
-	uid=12,
-	username="ttx",
-	password="xxw",
-}
-
 
 db = morm:Open("sqlite","test.db")
---[[db:Create(account):Query()
-db:Create(ac):Query()
-db:Update(ac2):Query()]]
-
-
-ac3 = account{
-	uid=12,
-}
-ac2 = account{
-	uid=1,
-}
-local list = {ac3,ac2}
-
-db:Find(list):Query()
-
-iprint(list)
+db:Create(vehicle):Query()
+--db:Update(ac2):Query()
+print(veh,2)
+db:Find(veh):Query(-1,function()
+	veh:onCreate()
+end)
+iprint(veh)
 --查询
 --db:Select("*"):From("account"):Where("uid",123):Query()
