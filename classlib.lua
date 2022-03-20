@@ -1,12 +1,9 @@
 --classlib.lua
 local loadstring = loadstring
 -------OOP
-local getmetatable = getmetatable
-local setmetatable = setmetatable
-local tostring = tostring
-local tonumber = tonumber
+local getmetatable,setmetatable,setfenv = getmetatable,setmetatable,setfenv
+local tonumber,tostring = tonumber,tostring
 local _call = call
-local setfenv = setfenv
 local function call(...)
 	local _source = source
 	local retValue = {_call(...)}
