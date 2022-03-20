@@ -77,7 +77,7 @@ oopUtil = {
 	assimilate = function(t1,t2,except)
 		if not t1 or not t2 then return end
 		local exceptTable = {}
-		if type(except) == "tabe" then
+		if type(except) == "table" then
 			for i=1,#except do
 				exceptTable[ except[i] ] = true
 			end
@@ -110,7 +110,15 @@ function class(name) return function(classTable)
 		__call = function(classTemplate,...)
 			local newInstance = {}
 			setmetatable(newInstance,oopUtil.classMetaReg[name])
-			if classTemplate.constructor then classTemplate.constructor(newInstance,...) end
+			if classTemplate.constructor then
+				classTemplate.constructor(newInstance,...)
+			else
+				local copyData = ...
+				if type(copyData) ~= "table" then return end
+				for k,v in pairs(copyData) do
+					newInstance[k] = v
+				end
+			end
 			return newInstance
 		end,
 	}
@@ -291,7 +299,10 @@ class "DataBase" {
 			self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Update `??` SET ",self.dbString.table)
 			local kvPair = {}
 			for key,value in pairs(template) do
-				kvPair[#kvPair+1] = dbPrepareString(self.db," `??` = ? ",key,value)
+				local vType = type(value)
+				if vType ~= "userdata" and vType ~= "function" then
+					kvPair[#kvPair+1] = dbPrepareString(self.db," `??` = ? ",key,value)
+				end
 			end
 			self.dbString[#self.dbString+1] = table.concat(kvPair,",")
 		elseif argCount == 2 then
@@ -310,7 +321,10 @@ class "DataBase" {
 				self.dbString[#self.dbString+1] = dbPrepareString(self.db,"Update `??` SET ",self.dbString.table)
 				local kvPair = {}
 				for key,value in pairs(template) do
-					kvPair[#kvPair+1] = dbPrepareString(self.db," `??` = ? ",key,value)
+					local vType = type(value)
+					if vType ~= "userdata" and vType ~= "function" then
+						kvPair[#kvPair+1] = dbPrepareString(self.db," `??` = ? ",key,value)
+					end
 				end
 				self.dbString[#self.dbString+1] = table.concat(kvPair,",")
 			else
@@ -360,7 +374,7 @@ class "DataBase" {
 									pendingFill[i][key] = value
 								end
 								successCount = successCount+1
-								table.remove(pollData,p)
+								table.remove(pollData,p)						--Remove copied data
 								p = #pollData
 							end
 							p = p+1
@@ -391,7 +405,7 @@ class "DataBase" {
 								pendingFill[i][key] = value
 							end
 							successCount = successCount+1
-							table.remove(pollData,p)
+							table.remove(pollData,p)						--Remove copied data
 							p = #pollData
 						end
 						p = p+1
