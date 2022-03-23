@@ -31,15 +31,15 @@ class "account" {
 }
 
 class "vehicle" {
-	id = "uint32",
-	model = "uint32",
+	id = "uint32;primary",
+	model = "uint32;foreign account(`model`)",
 	x = "float",
 	y = "float",
 	z = "float",
-	onCreate = function(self)
+	Create = function(self)
 		self.element = createVehicle(self.model,self.x,self.y,self.z)
 	end;
-	onSave = function(self)
+	Save = function(self)
 		self.x,self.y,self.z = getElementPosition(self.element)
 	end;
 }
@@ -50,14 +50,14 @@ veh = vehicle{
 
 db = morm:Open("sqlite","test.db")
 db:Create(vehicle):Query()
-db:Find(veh):Query(-1,function()
-	veh:onCreate()
+--[[db:Find(veh):Query(-1,function()
+	veh:Create()
 end)
+
 setTimer(function()
-	veh:onSave()
+	veh:Save()
 	db:Update(veh):Query(-1)
-	print("saved")
 end,5000,1)
-iprint(veh)
+iprint(veh)]]
 --查询
 --db:Select("*"):From("account"):Where("uid",123):Query()

@@ -91,10 +91,38 @@ oopUtil = {
 	end,
 	configToSql = function(self,dbType)
 		local strTable = {}
+		local specialKeys = {}
+		local theDataType
 		for columnName,dType in pairs(self) do
 			if type(dType) == "string" then
-				strTable[#strTable+1] = "`"..columnName.."` "..(sqlDataType[dType] or dType)
+				local extraTags = ""
+				if string.find(dType,";") then
+					local items = split(dType,";")
+					theDataType = sqlDataType[items[1]] or items[1]
+					for i=2,#items do
+						local tag = items[i]:lower():gsub(" ","")
+						if tag:sub(1,7) == "primary" then
+							extraTags = extraTags.." Primary Key "
+						elseif tag:sub(1,6) == "unique" then
+							extraTags = extraTags.." Unique "
+						elseif tag:sub(1,7) == "foreign" then
+							specialKeys[#specialKeys+1] = "Foreign Key (`"..columnName.."`) References "..items[i]:sub(8)
+						elseif tag == "notnull" then
+							extraTags = extraTags.." Not Null "
+						elseif tag == "defaultnull" then
+							extraTags = extraTags.." Default Null "
+						elseif tag == "autoincrement" or tag == "auto_increment" then
+							extraTags = extraTags.." Auto_Increment "
+						end
+					end
+				else
+					theDataType = sqlDataType[dType] or dType
+				end
+				strTable[#strTable+1] = "`"..columnName.."` "..theDataType.." "..extraTags
 			end
+		end
+		for i=1,#specialKeys do
+			strTable[#strTable+1] = specialKeys[i]
 		end
 		return table.concat(strTable,",")
 	end,
@@ -382,10 +410,12 @@ class "DataBase" {
 					callback(self,pollData)
 				end
 			end,self.db,table.concat(self.dbString))
+			print(table.concat(self.dbString))
 			self.dbString = {}
 			return true
 		else
 			local handle = dbQuery(self.db,table.concat(self.dbString))
+			print(table.concat(self.dbString))
 			self.dbString = {}
 			local pollData = dbPoll(handle,timedout or -1)
 			if pollData and pendingFill then	--Pending To Fill
