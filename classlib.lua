@@ -86,8 +86,8 @@ oopUtil = {
 		end
 	end,
 	spreadFunctionsForClass = function(class,classTemplate)
-		oopUtil.assimilate(class,classTemplate,{"expose","constructor","public"})
-		oopUtil.assimilate(class,classTemplate.public)
+		oopUtil.assimilate(class,classTemplate,{"expose","constructor"})
+		oopUtil.assimilate(class,classTemplate)
 	end,
 	configToSql = function(self,dbType)
 		local strTable = {}
@@ -148,31 +148,29 @@ function class(name) return function(classTable)
 		end,
 	}
 	if classTable.extend then
-		if not classTable.public then classTable.public = {} end
 		if type(classTable.extend) ~= "table" then
-			local extendClass = oopUtil[classTable.extend]
-			for extKey,extFunction in pairs(extendClass.public or {}) do
-				if not classTable.public[extKey] then classTable.public[extKey] = extFunction end	--Don't overwrite child's function when copying parent's functions
+			local extendClass = oopUtil.classReg[classTable.extend]
+			for extKey,extFunction in pairs(extendClass) do
+				if classTable[extKey] == nil then classTable[extKey] = extFunction end	--Don't overwrite child's function when copying parent's functions
 			end
 		else
 			for key,extend in ipairs(classTable.extend) do
-				local extendClass = oopUtil[extend]
-				for extKey,extFunction in pairs(extendClass.public or {}) do
-					if not classTable.public[extKey] then classTable.public[extKey] = extFunction end	--Don't overwrite child's function when copying parent's functions
+				local extendClass = oopUtil.classReg[extend]
+				for extKey,extFunction in pairs(extendClass) do
+					if classTable[extKey] == nil then classTable[extKey] = extFunction end	--Don't overwrite child's function when copying parent's functions
 				end
 			end
 		end
 	end
 	if classTable.inject then
 		for theType,space in pairs(classTable.inject) do
-			local injectedData = oopUtil[theType]
-			if not injectedData.public then injectedData.public = {} end
-			if not injectedData.default then injectedData.default = {} end
-			for name,fnc in pairs(space.default or {}) do
-				injectedData.default[name] = fnc
+			local injectedData = oopUtil.classReg[theType]
+			if not injectedData then injectedData = {} end
+			for name,fnc in pairs(space or {}) do
+				injectedData[name] = fnc
 			end
-			for name,fnc in pairs(space.public or {}) do
-				injectedData.public[name] = fnc
+			for name,fnc in pairs(space or {}) do
+				injectedData[name] = fnc
 			end
 		end
 	end
@@ -191,7 +189,6 @@ end
 oopUtil.class = class
 
 --Types:
---public: Will inherit
 sqlDataType = {
 	integer = "int",
 	int = "int",

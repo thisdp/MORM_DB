@@ -50,7 +50,7 @@ veh = vehicle{
 
 db = morm:Open("sqlite","test.db")
 db:Create(vehicle):Query()
---[[db:Find(veh):Query(-1,function()
+db:Find(veh):Query(-1,function()
 	veh:Create()
 end)
 
@@ -58,6 +58,6 @@ setTimer(function()
 	veh:Save()
 	db:Update(veh):Query(-1)
 end,5000,1)
-iprint(veh)]]
+iprint(veh)
 --查询
 --db:Select("*"):From("account"):Where("uid",123):Query()
